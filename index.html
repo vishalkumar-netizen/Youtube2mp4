@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamFetch — Open-Source Video Downloader</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#fef2f2',
+                            100: '#fee2e2',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200 selection:bg-brand-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-30 backdrop-blur-md bg-white/80 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-rose-600 flex items-center justify-center text-white shadow-lg shadow-brand-500/25">
+                    <i data-lucide="download-cloud" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <span class="font-bold text-lg tracking-tight">StreamFetch</span>
+                    <span class="hidden sm:inline-block ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">GitHub Edition</span>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs & Theme Toggle -->
+            <div class="flex items-center gap-2 sm:gap-4">
+                <nav class="flex bg-slate-200/70 dark:bg-slate-900 p-1 rounded-xl border border-slate-300/50 dark:border-slate-800">
+                    <button onclick="switchTab('downloader')" id="tab-downloader" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm">
+                        Downloader
+                    </button>
+                    <button onclick="switchTab('guide')" id="tab-guide" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5">
+                        <i data-lucide="github" class="w-3.5 h-3.5"></i>
+                        <span>Deploy & Backend</span>
+                    </button>
+                </nav>
+
+                <button onclick="toggleTheme()" aria-label="Toggle Theme" class="p-2.5 rounded-xl bg-slate-200/70 dark:bg-slate-900 border border-slate-300/50 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300/70 dark:hover:bg-slate-800 transition">
+                    <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
+                    <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
+        <!-- Notification Banner (Replaces alert()) -->
+        <div id="toast-box" class="hidden mb-6 p-4 rounded-2xl border flex items-start gap-3 transition-all shadow-sm">
+            <i id="toast-icon" data-lucide="info" class="w-5 h-5 shrink-0 mt-0.5"></i>
+            <div class="flex-1 text-sm" id="toast-message"></div>
+            <button onclick="hideToast()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <!-- VIEW 1: VIDEO DOWNLOADER INTERFACE -->
+        <section id="view-downloader" class="space-y-8">
+            <!-- Hero Title -->
+            <div class="text-center max-w-2xl mx-auto space-y-3">
+                <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">
+                    Download Videos in <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-amber-500">144p to 1440p+</span> with Sound
+                </h1>
+                <p class="text-sm sm:text-base text-slate-600 dark:text-slate-400">
+                    Paste any YouTube link below. Automatically merges high-bitrate video streams with crystal-clear audio into a ready-to-play MP4.
+                </p>
+            </div>
+
+            <!-- Main Downloader Card -->
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none p-5 sm:p-8 space-y-6">
+                
+                <!-- Engine Selector Bar -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-100 dark:border-slate-800/80">
+                    <div class="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>Processing Engine:</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select id="engine-mode" onchange="handleEngineChange()" class="text-xs font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            <option value="custom" selected>Render / Custom Python Backend</option>
+                            <option value="cobalt">Public API Mirrors (Auto-Failover)</option>
+                        </select>
+                        <input type="text" id="custom-api-url" value="https://your-app-name.onrender.com" placeholder="https://your-app.onrender.com" class="text-xs font-mono bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 w-56 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                </div>
+
+                <!-- URL Input Form -->
+                <div class="space-y-2">
+                    <label for="video-url" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        YouTube Video URL
+                    </label>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <div class="relative flex-1">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                                <i data-lucide="link" class="w-4 h-4"></i>
+                            </div>
+                            <input type="url" id="video-url" placeholder="https://www.youtube.com/watch?v=..." 
+                                class="w-full pl-11 pr-20 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition">
+                            <button onclick="pasteFromClipboard()" type="button" class="absolute inset-y-2 right-2 px-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+                                Paste
+                            </button>
+                        </div>
+                        <button onclick="analyzeVideo()" id="analyze-btn" class="px-6 py-3.5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold text-sm hover:opacity-90 transition flex items-center justify-center gap-2 shrink-0 shadow-md">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                            <span>Load Video</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Video Preview & Quality Grid (Hidden until URL is loaded) -->
+                <div id="video-result-area" class="hidden pt-4 border-t border-slate-100 dark:border-slate-800 space-y-6 animate-fade-in">
+                    
+                    <!-- Metadata Preview Card -->
+                    <div class="flex flex-col sm:flex-row gap-5 items-center sm:items-start bg-slate-50 dark:bg-slate-950/60 p-4 rounded-2xl border border-slate-200/70 dark:border-slate-800">
+                        <div class="relative w-full sm:w-48 aspect-video rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 shrink-0">
+                            <img id="video-thumb" src="" alt="Video Thumbnail" onerror="this.src='https://placehold.co/640x360/1e293b/f8fafc?text=Video+Preview'" class="w-full h-full object-cover">
+                            <span class="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/80 text-white text-[11px] font-mono">MP4 + AAC</span>
+                        </div>
+                        <div class="flex-1 space-y-2 text-center sm:text-left">
+                            <h2 id="video-title" class="font-bold text-base sm:text-lg line-clamp-2">Video Title</h2>
+                            <p id="video-channel" class="text-xs text-slate-500 dark:text-slate-400">YouTube Stream Ready</p>
+                            <div class="flex flex-wrap justify-center sm:justify-start gap-2 pt-1">
+                                <span class="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
+                                    <i data-lucide="volume-2" class="w-3.5 h-3.5"></i> Audio Merged
+                                </span>
+                                <span class="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium">
+                                    <i data-lucide="film" class="w-3.5 h-3.5"></i> H.264 / VP9
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Resolution Selection Grid -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                Select Resolution & Format
+                            </label>
+                            <span class="text-xs text-slate-400">All options include sound</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5" id="quality-grid">
+                            <!-- Quality buttons injected via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Download Action Button -->
+                    <div class="pt-2">
+                        <button onclick="triggerDownload()" id="download-btn" class="w-full py-4 rounded-2xl bg-gradient-to-r from-brand-600 to-rose-600 hover:from-brand-500 hover:to-rose-500 text-white font-bold text-base shadow-lg shadow-brand-500/25 transition flex items-center justify-center gap-2.5">
+                            <i data-lucide="download" class="w-5 h-5"></i>
+                            <span id="download-btn-text">Download 1080p MP4 (With Sound)</span>
+                        </button>
+                    </div>
+
+                    <!-- Progress / Output Area -->
+                    <div id="download-progress-box" class="hidden p-4 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
+                        <div class="flex items-center justify-between text-xs font-medium">
+                            <span id="progress-status" class="flex items-center gap-2 text-brand-600 dark:text-brand-400">
+                                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                                Requesting merged stream...
+                            </span>
+                            <span id="progress-badge" class="font-mono text-slate-500">FFmpeg Merge</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div id="progress-bar" class="h-full bg-brand-500 rounded-full transition-all duration-500 w-1/3"></div>
+                        </div>
+                        <div id="direct-link-container" class="hidden pt-2">
+                            <a id="direct-download-link" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                                Click here if your browser blocked the automatic download
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature Highlights -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                    <div class="w-8 h-8 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center">
+                        <i data-lucide="layers" class="w-4 h-4"></i>
+                    </div>
+                    <h3 class="font-bold text-sm">Auto Stream Merging</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        YouTube separates 1080p and 1440p video from audio. Our backend merges both streams automatically.
+                    </p>
+                </div>
+                <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                        <i data-lucide="github" class="w-4 h-4"></i>
+                    </div>
+                    <h3 class="font-bold text-sm">100% GitHub Pages Ready</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Built as a single self-contained HTML file. Push to any GitHub repository and enable Pages in 30 seconds.
+                    </p>
+                </div>
+                <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                        <i data-lucide="sliders" class="w-4 h-4"></i>
+                    </div>
+                    <h3 class="font-bold text-sm">Every Resolution</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Supports 144p data-saver mode, 360p, 720p, 1080p Full HD, 1440p 2K, and Audio-Only MP3 extraction.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 2: GITHUB PAGES & SELF-HOSTED BACKEND GUIDE -->
+        <section id="view-guide" class="hidden space-y-8">
+            <div class="space-y-2">
+                <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">How to Host This on GitHub Pages</h2>
+                <p class="text-sm text-slate-600 dark:text-slate-400">
+                    Follow these steps to publish your web interface on GitHub and connect your own Python + yt-dlp backend.
+                </p>
+            </div>
+
+            <!-- Step 1: GitHub Pages -->
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+                <div class="flex items-center gap-3">
+                    <span class="w-7 h-7 rounded-full bg-brand-500 text-white font-bold text-xs flex items-center justify-center">1</span>
+                    <h3 class="font-bold text-lg">Publish Frontend to GitHub Pages</h3>
+                </div>
+                <ol class="list-decimal list-inside space-y-2 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                    <li>Create a new public repository on <a href="https://github.com/new" target="_blank" class="text-brand-500 hover:underline font-medium">github.com/new</a> (e.g., <code class="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">video-downloader</code>).</li>
+                    <li>Save this entire HTML file as <code class="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">index.html</code> and upload/push it to the <code class="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">main</code> branch.</li>
+                    <li>Go to your repository <strong>Settings → Pages</strong>.</li>
+                    <li>Under <strong>Build and deployment → Branch</strong>, select <code class="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">main</code> and click <strong>Save</strong>.</li>
+                    <li>Your live site will be available at <code class="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">https://your-username.github.io/video-downloader/</code>.</li>
+                </ol>
+            </div>
+
+            <!-- Step 2: Optional Own Backend -->
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="flex items-center gap-3">
+                        <span class="w-7 h-7 rounded-full bg-brand-500 text-white font-bold text-xs flex items-center justify-center">2</span>
+                        <h3 class="font-bold text-lg">Run Your Own Backend API (Optional / Unlimited)</h3>
+                    </div>
+                    <button onclick="copyBackendCode()" class="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5 transition">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        <span>Copy server.py</span>
+                    </button>
+                </div>
+                <p class="text-sm text-slate-600 dark:text-slate-400">
+                    Public APIs can occasionally hit rate limits. For guaranteed 1080p/1440p downloads with sound, run this lightweight Python server locally or deploy it free on <strong>Render / Railway / Koyeb</strong>, then select <em>"Custom Python Backend"</em> on the Downloader tab.
+                </p>
+                <div class="bg-slate-950 text-slate-200 p-4 rounded-2xl overflow-x-auto border border-slate-800">
+<pre id="backend-code" class="text-xs font-mono leading-relaxed"># Save as server.py | Run: pip install fastapi uvicorn yt-dlp && uvicorn server:app --reload
+import os, uuid
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+import yt_dlp
+
+app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+os.makedirs("downloads", exist_ok=True)
+
+@app.get("/download")
+def download_video(url: str, quality: str = "1080"):
+    file_id = str(uuid.uuid4())[:8]
+    outtmpl = f"downloads/{file_id}_%(title)s.%(ext)s"
+    
+    if quality == "audio":
+        fmt = "bestaudio/best"
+    else:
+        fmt = f"bestvideo[height<={quality}]+bestaudio/best[height<={quality}]/best"
+
+    ydl_opts = {
+        "format": fmt,
+        "outtmpl": outtmpl,
+        "merge_output_format": "mp4" if quality != "audio" else "m4a",
+        "noplaylist": True,
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            if quality != "audio":
+                filename = os.path.splitext(filename)[0] + ".mp4"
+            return FileResponse(filename, filename=os.path.basename(filename))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))</pre>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 dark:border-slate-800/80 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
+        <p>Built for GitHub Pages • Powered by Open-Source <code class="font-mono">yt-dlp</code> &amp; <code class="font-mono">FFmpeg</code> architecture</p>
+    </footer>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Application State
+        const QUALITIES = [
+            { id: '1440', label: '1440p', tag: '2K QHD', desc: 'MP4 + Audio' },
+            { id: '1080', label: '1080p', tag: 'Full HD', desc: 'MP4 + Audio' },
+            { id: '720',  label: '720p',  tag: 'HD',      desc: 'MP4 + Audio' },
+            { id: '360',  label: '360p',  tag: 'SD',      desc: 'MP4 + Audio' },
+            { id: '144',  label: '144p',  tag: 'Saver',   desc: 'MP4 + Audio' },
+            { id: 'audio', label: 'Audio', tag: 'MP3/M4A', desc: 'Sound Only' },
+        ];
+
+        let selectedQuality = '1080';
+        let currentVideoId = null;
+
+        // Render Quality Cards on Load
+        function renderQualityGrid() {
+            const grid = document.getElementById('quality-grid');
+            grid.innerHTML = QUALITIES.map(q => {
+                const isSelected = q.id === selectedQuality;
+                return `
+                    <button type="button" onclick="selectQuality('${q.id}')"
+                        class="p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1.5 ${
+                            isSelected
+                            ? 'border-brand-500 bg-brand-500/10 ring-2 ring-brand-500/30'
+                            : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 hover:border-slate-300 dark:hover:border-slate-700'
+                        }">
+                        <div class="flex items-center justify-between w-full">
+                            <span class="font-extrabold text-sm ${isSelected ? 'text-brand-600 dark:text-brand-400' : ''}">${q.label}</span>
+                            <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300">${q.tag}</span>
+                        </div>
+                        <span class="text-[11px] text-slate-500 dark:text-slate-400">${q.desc}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectQuality(qualityId) {
+            selectedQuality = qualityId;
+            renderQualityGrid();
+            const qObj = QUALITIES.find(q => q.id === qualityId);
+            const btnText = document.getElementById('download-btn-text');
+            if (qualityId === 'audio') {
+                btnText.textContent = 'Download Audio Track (High Quality)';
+            } else {
+                btnText.textContent = `Download ${qObj.label} MP4 (With Sound)`;
+            }
+        }
+
+        // Extract YouTube Video ID from various URL formats
+        function extractYouTubeID(url) {
+            const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+            const match = url.match(regex);
+            return match ? match[1] : null;
+        }
+
+        // Analyze & Fetch Metadata via noembed (CORS-friendly public oEmbed)
+        async function analyzeVideo() {
+            const urlInput = document.getElementById('video-url').value.trim();
+            hideToast();
+
+            if (!urlInput) {
+                showToast('Please paste a valid YouTube link first.', 'error');
+                return;
+            }
+
+            const videoId = extractYouTubeID(urlInput);
+            if (!videoId) {
+                showToast('Could not recognize a valid YouTube video URL.', 'error');
+                return;
+            }
+
+            currentVideoId = videoId;
+            const analyzeBtn = document.getElementById('analyze-btn');
+            analyzeBtn.disabled = true;
+            analyzeBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Loading...</span>`;
+            lucide.createIcons();
+
+            try {
+                const oembedUrl = `https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`;
+                const response = await fetch(oembedUrl);
+                const data = await response.json();
+
+                document.getElementById('video-title').textContent = data.title || `YouTube Video (${videoId})`;
+                document.getElementById('video-channel').textContent = data.author_name ? `Channel: ${data.author_name}` : 'YouTube Stream Ready';
+            } catch (err) {
+                document.getElementById('video-title').textContent = `YouTube Video (${videoId})`;
+                document.getElementById('video-channel').textContent = 'Ready to process stream';
+            } finally {
+                document.getElementById('video-thumb').src = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+                document.getElementById('video-result-area').classList.remove('hidden');
+                document.getElementById('download-progress-box').classList.add('hidden');
+                analyzeBtn.disabled = false;
+                analyzeBtn.innerHTML = `<i data-lucide="search" class="w-4 h-4"></i><span>Load Video</span>`;
+                lucide.createIcons();
+            }
+        }
+
+        // Execute Download Request with Multi-Instance Failover
+        async function triggerDownload() {
+            const rawUrl = document.getElementById('video-url').value.trim();
+            if (!rawUrl || !currentVideoId) {
+                showToast('Please load a valid video URL first.', 'error');
+                return;
+            }
+
+            const engine = document.getElementById('engine-mode').value;
+            const progressBox = document.getElementById('download-progress-box');
+            const progressStatus = document.getElementById('progress-status');
+            const progressBar = document.getElementById('progress-bar');
+            const directLinkContainer = document.getElementById('direct-link-container');
+            const directLink = document.getElementById('direct-download-link');
+            const downloadBtn = document.getElementById('download-btn');
+
+            progressBox.classList.remove('hidden');
+            directLinkContainer.classList.add('hidden');
+            progressBar.classList.remove('bg-amber-500');
+            progressBar.classList.add('bg-brand-500');
+            progressBar.style.width = '35%';
+            progressStatus.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Merging ${selectedQuality === 'audio' ? 'audio' : selectedQuality + 'p video + audio'}...`;
+            lucide.createIcons();
+            downloadBtn.disabled = true;
+
+            try {
+                if (engine === 'custom') {
+                    // Connect to user's self-hosted Render FastAPI yt-dlp backend
+                    const baseUrl = document.getElementById('custom-api-url').value.replace(/\/$/, '');
+                    if (baseUrl.includes('your-app-name.onrender.com')) {
+                        throw new Error('Please paste your actual Render URL (e.g. https://streamfetch-api.onrender.com) into the backend URL box above.');
+                    }
+                    const streamEndpoint = `${baseUrl}/download?url=${encodeURIComponent(rawUrl)}&quality=${selectedQuality}`;
+                    
+                    progressStatus.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Waking up Render server & merging streams (may take 15-30s on free tier)...`;
+                    lucide.createIcons();
+
+                    // Verify backend is reachable first
+                    const healthCheck = await fetch(`${baseUrl}/`).catch(() => null);
+                    if (!healthCheck || !healthCheck.ok) {
+                        throw new Error(`Cannot reach your Render server at ${baseUrl}. Make sure it is deployed and running.`);
+                    }
+
+                    progressBar.style.width = '100%';
+                    progressStatus.innerHTML = `<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i> Render server connected! Downloading merged MP4...`;
+                    directLink.href = streamEndpoint;
+                    directLinkContainer.classList.remove('hidden');
+                    window.open(streamEndpoint, '_blank');
+                } else {
+                    // Try multiple community Cobalt API instances in order
+                    const publicMirrors = [
+                        'https://cobalt-api.kwiatekmiki.com/',
+                        'https://cobalt-backend.canine.tools/',
+                        'https://api.cobalt.best/'
+                    ];
+
+                    const payload = {
+                        url: `https://www.youtube.com/watch?v=${currentVideoId}`,
+                        videoQuality: selectedQuality === 'audio' ? '1080' : selectedQuality,
+                        downloadMode: selectedQuality === 'audio' ? 'audio' : 'auto',
+                        filenameStyle: 'pretty'
+                    };
+
+                    let streamUrl = null;
+                    let lastError = '';
+
+                    for (let i = 0; i < publicMirrors.length; i++) {
+                        const mirror = publicMirrors[i];
+                        progressBar.style.width = `${35 + (i * 20)}%`;
+                        progressStatus.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Trying mirror ${i + 1} of ${publicMirrors.length}...`;
+                        lucide.createIcons();
+
+                        try {
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+                            const res = await fetch(mirror, {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(payload),
+                                signal: controller.signal
+                            });
+                            clearTimeout(timeoutId);
+
+                            const data = await res.json();
+                            if (data && data.url) {
+                                streamUrl = data.url;
+                                break;
+                            } else if (data?.error?.code) {
+                                lastError = data.error.code;
+                            }
+                        } catch (e) {
+                            lastError = e.message;
+                        }
+                    }
+
+                    if (streamUrl) {
+                        progressBar.style.width = '100%';
+                        progressStatus.innerHTML = `<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i> Stream ready! Click the link below if download doesn't start automatically.`;
+                        directLink.href = streamUrl;
+                        directLinkContainer.classList.remove('hidden');
+                        window.open(streamUrl, '_blank');
+                    } else {
+                        throw new Error(`Public API mirrors are currently blocked by YouTube (${lastError || 'rate-limited'}). To make it work 100% of the time: open the "Deploy & Backend" tab, run server.py on your PC, and switch Processing Engine to "Custom Python Backend".`);
+                    }
+                }
+            } catch (error) {
+                progressBar.style.width = '100%';
+                progressBar.classList.replace('bg-brand-500', 'bg-amber-500');
+                progressStatus.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500"></i> Action Required`;
+                showToast(error.message, 'warning');
+            } finally {
+                downloadBtn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        // UI Helpers
+        function handleEngineChange() {
+            const mode = document.getElementById('engine-mode').value;
+            const customInput = document.getElementById('custom-api-url');
+            if (mode === 'custom') {
+                customInput.classList.remove('hidden');
+            } else {
+                customInput.classList.add('hidden');
+            }
+        }
+
+        function switchTab(tab) {
+            const downloaderView = document.getElementById('view-downloader');
+            const guideView = document.getElementById('view-guide');
+            const tabDownloader = document.getElementById('tab-downloader');
+            const tabGuide = document.getElementById('tab-guide');
+
+            const activeClasses = ['bg-white', 'dark:bg-slate-800', 'text-slate-900', 'dark:text-white', 'shadow-sm'];
+            const inactiveClasses = ['text-slate-600', 'dark:text-slate-400'];
+
+            if (tab === 'downloader') {
+                downloaderView.classList.remove('hidden');
+                guideView.classList.add('hidden');
+                tabDownloader.classList.add(...activeClasses);
+                tabDownloader.classList.remove(...inactiveClasses);
+                tabGuide.classList.remove(...activeClasses);
+                tabGuide.classList.add(...inactiveClasses);
+            } else {
+                downloaderView.classList.add('hidden');
+                guideView.classList.remove('hidden');
+                tabGuide.classList.add(...activeClasses);
+                tabGuide.classList.remove(...inactiveClasses);
+                tabDownloader.classList.remove(...activeClasses);
+                tabDownloader.classList.add(...inactiveClasses);
+            }
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById('video-url').value = text;
+                analyzeVideo();
+            } catch (e) {
+                showToast('Clipboard access blocked by browser. Please press Ctrl+V / Cmd+V in the box.', 'info');
+            }
+        }
+
+        function copyBackendCode() {
+            const code = document.getElementById('backend-code').innerText;
+            const textarea = document.createElement('textarea');
+            textarea.value = code;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('Copied server.py code to clipboard!', 'success');
+        }
+
+        function showToast(msg, type = 'info') {
+            const box = document.getElementById('toast-box');
+            const text = document.getElementById('toast-message');
+            const icon = document.getElementById('toast-icon');
+
+            box.className = 'mb-6 p-4 rounded-2xl border flex items-start gap-3 transition-all shadow-sm ';
+            if (type === 'error') {
+                box.className += 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400';
+                icon.setAttribute('data-lucide', 'alert-circle');
+            } else if (type === 'warning') {
+                box.className += 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300';
+                icon.setAttribute('data-lucide', 'alert-triangle');
+            } else if (type === 'success') {
+                box.className += 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300';
+                icon.setAttribute('data-lucide', 'check-circle-2');
+            } else {
+                box.className += 'bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300';
+                icon.setAttribute('data-lucide', 'info');
+            }
+
+            text.textContent = msg;
+            box.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function hideToast() {
+            document.getElementById('toast-box').classList.add('hidden');
+        }
+
+        // Initialize grid
+        renderQualityGrid();
+    </script>
+</body>
+</html>
